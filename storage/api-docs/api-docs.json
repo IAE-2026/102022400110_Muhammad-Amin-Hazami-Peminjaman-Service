@@ -21,12 +21,13 @@
                 "operationId": "11067bb9b862fd7effd5a9394c6aa29e",
                 "parameters": [
                     {
-                        "name": "X-IAE-KEY",
+                        "name": "Authorization",
                         "in": "header",
-                        "description": "API Key Authentication berupa NIM",
+                        "description": "Bearer Token (JWT) dari SSO Warga",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "default": "Bearer <token>"
                         }
                     }
                 ],
@@ -44,12 +45,13 @@
                 "operationId": "67746018747d878b72f133d469781040",
                 "parameters": [
                     {
-                        "name": "X-IAE-KEY",
+                        "name": "Authorization",
                         "in": "header",
-                        "description": "API Key Authentication berupa NIM",
+                        "description": "Bearer Token (JWT) dari SSO Warga",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "default": "Bearer <token>"
                         }
                     }
                 ],
@@ -93,12 +95,13 @@
                 "operationId": "93e76696ff0b06ec950dd75e35c89c1b",
                 "parameters": [
                     {
-                        "name": "X-IAE-KEY",
+                        "name": "Authorization",
                         "in": "header",
-                        "description": "API Key Authentication berupa NIM",
+                        "description": "Bearer Token (JWT) dari SSO Warga",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "default": "Bearer <token>"
                         }
                     },
                     {
@@ -130,12 +133,13 @@
                 "operationId": "2e6a11e9ff54d0caf7c65d4173719a98",
                 "parameters": [
                     {
-                        "name": "X-IAE-KEY",
+                        "name": "Authorization",
                         "in": "header",
-                        "description": "API Key Authentication berupa NIM",
+                        "description": "Bearer Token (JWT) dari SSO Warga",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "default": "Bearer <token>"
                         }
                     },
                     {

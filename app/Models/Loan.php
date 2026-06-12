@@ -12,5 +12,6 @@ class Loan extends Model
         'borrow_date',
         'return_date',
         'status',
+        'receipt_number',
     ];
 }

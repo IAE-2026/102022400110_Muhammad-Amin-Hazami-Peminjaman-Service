@@ -12,7 +12,7 @@ class ApiKeyMiddleware
     {
         $apiKey = $request->header('X-IAE-KEY');
 
-        if (!$apiKey || $apiKey !== env('API_KEY')) {
+        if (!$apiKey || $apiKey !== (string) env('API_KEY')) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Unauthorized: Invalid or missing API Key',

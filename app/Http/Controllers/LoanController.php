@@ -45,11 +45,11 @@ class LoanController extends Controller
      * summary="Ambil semua transaksi peminjaman",
      * tags={"Loans"},
      * @OA\Parameter(
-     * name="X-IAE-KEY",
+     * name="Authorization",
      * in="header",
      * required=true,
-     * description="API Key Authentication berupa NIM",
-     * @OA\Schema(type="string")
+     * description="Bearer Token (JWT) dari SSO Warga",
+     * @OA\Schema(type="string", default="Bearer <token>")
      * ),
      * @OA\Response(
      * response=200,
@@ -69,11 +69,11 @@ class LoanController extends Controller
      * summary="Ambil detail satu transaksi",
      * tags={"Loans"},
      * @OA\Parameter(
-     * name="X-IAE-KEY",
+     * name="Authorization",
      * in="header",
      * required=true,
-     * description="API Key Authentication berupa NIM",
-     * @OA\Schema(type="string")
+     * description="Bearer Token (JWT) dari SSO Warga",
+     * @OA\Schema(type="string", default="Bearer <token>")
      * ),
      * @OA\Parameter(
      * name="id",
@@ -103,11 +103,11 @@ class LoanController extends Controller
      * summary="Buat transaksi peminjaman baru",
      * tags={"Loans"},
      * @OA\Parameter(
-     * name="X-IAE-KEY",
+     * name="Authorization",
      * in="header",
      * required=true,
-     * description="API Key Authentication berupa NIM",
-     * @OA\Schema(type="string")
+     * description="Bearer Token (JWT) dari SSO Warga",
+     * @OA\Schema(type="string", default="Bearer <token>")
      * ),
      * @OA\RequestBody(
      * required=true,
@@ -143,11 +143,11 @@ class LoanController extends Controller
      * summary="Proses pengembalian buku",
      * tags={"Loans"},
      * @OA\Parameter(
-     * name="X-IAE-KEY",
+     * name="Authorization",
      * in="header",
      * required=true,
-     * description="API Key Authentication berupa NIM",
-     * @OA\Schema(type="string")
+     * description="Bearer Token (JWT) dari SSO Warga",
+     * @OA\Schema(type="string", default="Bearer <token>")
      * ),
      * @OA\Parameter(
      * name="id",
@@ -160,7 +160,7 @@ class LoanController extends Controller
      * @OA\Response(response=404, description="Resource not found")
      * )
      */
-    public function returnBook($id)
+    public function returnBook(Request $request, $id)
     {
         $loan = Loan::find($id);
 
@@ -176,6 +176,49 @@ class LoanController extends Controller
             'return_date' => now()->format('Y-m-d'),
             'status' => 'returned'
         ]);
+
+        // SOAP Audit & AMQP Publisher integration (Tugas 3)
+        // Fetch M2M Bearer Token using the API_KEY
+        $m2mToken = \Illuminate\Support\Facades\Cache::remember('sso_m2m_token', 3000, function () {
+            try {
+                $response = \Illuminate\Support\Facades\Http::timeout(10)->post(env('SSO_URL') . '/api/v1/auth/token', [
+                    'api_key' => env('API_KEY'),
+                ]);
+                if ($response->successful()) {
+                    return $response->json('token');
+                }
+                \Illuminate\Support\Facades\Log::error('Failed to fetch M2M token: ' . $response->body());
+                return null;
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Exception fetching M2M token: ' . $e->getMessage());
+                return null;
+            }
+        });
+
+        $auditData = [
+            'loan_id' => $loan->id,
+            'member_id' => $loan->member_id,
+            'book_id' => $loan->book_id,
+            'borrow_date' => $loan->borrow_date,
+            'return_date' => $loan->return_date,
+            'status' => $loan->status,
+        ];
+
+        // 1. Send SOAP Audit Log
+        $soapService = new \App\Services\SoapAuditService();
+        $receiptNumber = null;
+        if ($m2mToken) {
+            $receiptNumber = $soapService->sendAudit('BookReturned', $auditData, $m2mToken);
+            if ($receiptNumber) {
+                $loan->update(['receipt_number' => $receiptNumber]);
+            }
+        }
+
+        // 2. Publish AMQP Event Notification
+        if ($m2mToken) {
+            $amqpService = new \App\Services\AmqpPublisherService();
+            $amqpService->publish('library.loan.returned', $loan, $m2mToken);
+        }
 
         return $this->formatResponse('success', 'Book returned successfully', $loan, 200);
     }
