@@ -7,8 +7,8 @@
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:8000",
-            "description": "Local Server"
+            "url": "/",
+            "description": "Current Server"
         }
     ],
     "paths": {
@@ -19,23 +19,21 @@
                 ],
                 "summary": "Ambil semua transaksi peminjaman",
                 "operationId": "11067bb9b862fd7effd5a9394c6aa29e",
-                "parameters": [
-                    {
-                        "name": "Authorization",
-                        "in": "header",
-                        "description": "Bearer Token (JWT) dari SSO Warga",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "Bearer <token>"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
-                        "description": "Data retrieved successfully"
+                        "description": "Data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
             },
             "post": {
                 "tags": [
@@ -43,18 +41,6 @@
                 ],
                 "summary": "Buat transaksi peminjaman baru",
                 "operationId": "67746018747d878b72f133d469781040",
-                "parameters": [
-                    {
-                        "name": "Authorization",
-                        "in": "header",
-                        "description": "Bearer Token (JWT) dari SSO Warga",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "Bearer <token>"
-                        }
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -81,9 +67,19 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Data created successfully"
+                        "description": "Data created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
             }
         },
         "/api/v1/loans/{id}": {
@@ -95,16 +91,6 @@
                 "operationId": "93e76696ff0b06ec950dd75e35c89c1b",
                 "parameters": [
                     {
-                        "name": "Authorization",
-                        "in": "header",
-                        "description": "Bearer Token (JWT) dari SSO Warga",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "Bearer <token>"
-                        }
-                    },
-                    {
                         "name": "id",
                         "in": "path",
                         "description": "ID Transaksi Peminjaman",
@@ -116,12 +102,27 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Data retrieved successfully"
+                        "description": "Data retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
                     },
                     "404": {
-                        "description": "Resource not found"
+                        "description": "Resource not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
             }
         },
         "/api/v1/loans/{id}/return": {
@@ -133,16 +134,6 @@
                 "operationId": "2e6a11e9ff54d0caf7c65d4173719a98",
                 "parameters": [
                     {
-                        "name": "Authorization",
-                        "in": "header",
-                        "description": "Bearer Token (JWT) dari SSO Warga",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "Bearer <token>"
-                        }
-                    },
-                    {
                         "name": "id",
                         "in": "path",
                         "description": "ID Transaksi Peminjaman",
@@ -154,12 +145,37 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Book returned successfully"
+                        "description": "Book returned successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
                     },
                     "404": {
-                        "description": "Resource not found"
+                        "description": "Resource not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "ApiKeyAuth": {
+                "type": "apiKey",
+                "description": "API Key (NIM) untuk autentikasi service",
+                "name": "X-IAE-KEY",
+                "in": "header"
             }
         }
     },

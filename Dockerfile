@@ -13,10 +13,16 @@ COPY . .
 
 RUN composer install --optimize-autoloader --no-interaction
 
+# Setup .env jika belum ada
+RUN cp -n .env.example .env || true
+RUN php artisan key:generate --force --no-interaction || true
+
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
 EXPOSE 8000
 
-CMD php artisan migrate --force && \
+CMD php artisan config:clear && \
+    php artisan migrate --seed --force && \
     php artisan l5-swagger:generate && \
     php artisan serve --host=0.0.0.0 --port=8000
+

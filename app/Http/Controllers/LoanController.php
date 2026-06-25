@@ -9,13 +9,20 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * @OA\Info(
- * title="Service Peminjaman API",
- * version="1.0.0",
- * description="Dokumentasi layanan peminjaman buku untuk Tugas 2 IAE"
+ *     title="Service Peminjaman API",
+ *     version="1.0.0",
+ *     description="Dokumentasi layanan peminjaman buku untuk Tugas 2 IAE"
  * )
  * @OA\Server(
- * url="http://127.0.0.1:8000",
- * description="Local Server"
+ *     url="/",
+ *     description="Current Server"
+ * )
+ * @OA\SecurityScheme(
+ *     securityScheme="ApiKeyAuth",
+ *     type="apiKey",
+ *     in="header",
+ *     name="X-IAE-KEY",
+ *     description="API Key (NIM) untuk autentikasi service"
  * )
  */
 class LoanController extends Controller
@@ -27,15 +34,15 @@ class LoanController extends Controller
             'message' => $message,
         ];
 
-        if ($data !== null) {
-            $response['data'] = $data;
-        }
-
         if ($status === 'success') {
+            $response['data'] = $data;
             $response['meta'] = [
                 'service_name' => 'Peminjaman-Service',
                 'api_version' => 'v1'
             ];
+        } else {
+            // Error response sesuai kontrak IAE-T2: pakai 'errors', bukan 'data'
+            $response['errors'] = $data;
         }
 
         return response()->json($response, $code);
@@ -46,16 +53,11 @@ class LoanController extends Controller
      * path="/api/v1/loans",
      * summary="Ambil semua transaksi peminjaman",
      * tags={"Loans"},
-     * @OA\Parameter(
-     * name="Authorization",
-     * in="header",
-     * required=true,
-     * description="Bearer Token (JWT) dari SSO Warga",
-     * @OA\Schema(type="string", default="Bearer <token>")
-     * ),
+     * security={{"ApiKeyAuth":{}}},
      * @OA\Response(
      * response=200,
-     * description="Data retrieved successfully"
+     * description="Data retrieved successfully",
+     * @OA\JsonContent()
      * )
      * )
      */
@@ -70,13 +72,7 @@ class LoanController extends Controller
      * path="/api/v1/loans/{id}",
      * summary="Ambil detail satu transaksi",
      * tags={"Loans"},
-     * @OA\Parameter(
-     * name="Authorization",
-     * in="header",
-     * required=true,
-     * description="Bearer Token (JWT) dari SSO Warga",
-     * @OA\Schema(type="string", default="Bearer <token>")
-     * ),
+     * security={{"ApiKeyAuth":{}}},
      * @OA\Parameter(
      * name="id",
      * in="path",
@@ -84,8 +80,16 @@ class LoanController extends Controller
      * description="ID Transaksi Peminjaman",
      * @OA\Schema(type="integer")
      * ),
-     * @OA\Response(response=200, description="Data retrieved successfully"),
-     * @OA\Response(response=404, description="Resource not found")
+     * @OA\Response(
+     * response=200,
+     * description="Data retrieved successfully",
+     * @OA\JsonContent()
+     * ),
+     * @OA\Response(
+     * response=404,
+     * description="Resource not found",
+     * @OA\JsonContent()
+     * )
      * )
      */
     public function show($id)
@@ -104,13 +108,7 @@ class LoanController extends Controller
      * path="/api/v1/loans",
      * summary="Buat transaksi peminjaman baru",
      * tags={"Loans"},
-     * @OA\Parameter(
-     * name="Authorization",
-     * in="header",
-     * required=true,
-     * description="Bearer Token (JWT) dari SSO Warga",
-     * @OA\Schema(type="string", default="Bearer <token>")
-     * ),
+     * security={{"ApiKeyAuth":{}}},
      * @OA\RequestBody(
      * required=true,
      * @OA\JsonContent(
@@ -119,7 +117,11 @@ class LoanController extends Controller
      * @OA\Property(property="book_id", type="integer", example=5)
      * )
      * ),
-     * @OA\Response(response=201, description="Data created successfully")
+     * @OA\Response(
+     * response=201,
+     * description="Data created successfully",
+     * @OA\JsonContent()
+     * )
      * )
      */
     public function store(Request $request)
@@ -129,9 +131,23 @@ class LoanController extends Controller
             'book_id' => 'required|integer',
         ]);
 
+        // Coba validasi ke service eksternal (opsional — graceful degradation)
+        $member = null;
+        $book = null;
+        $stockResult = null;
+
         $memberResult = $this->fetchMember((int) $request->member_id);
 
-        if (! $memberResult['ok']) {
+        if ($memberResult['ok']) {
+            $member = $memberResult['data'];
+            if (($member['is_active'] ?? false) !== true || ($member['status'] ?? null) !== 'active') {
+                return $this->formatResponse('error', 'Member is not active', [
+                    'member_id' => (int) $request->member_id,
+                    'member_status' => $member['status'] ?? null,
+                ], 422);
+            }
+        } elseif ($memberResult['code'] !== 502) {
+            // Hanya gagalkan jika bukan masalah koneksi (service tidak tersedia)
             return $this->formatResponse(
                 'error',
                 $memberResult['message'],
@@ -139,18 +155,30 @@ class LoanController extends Controller
                 $memberResult['code']
             );
         }
-
-        $member = $memberResult['data'];
-        if (($member['is_active'] ?? false) !== true || ($member['status'] ?? null) !== 'active') {
-            return $this->formatResponse('error', 'Member is not active', [
-                'member_id' => (int) $request->member_id,
-                'member_status' => $member['status'] ?? null,
-            ], 422);
-        }
+        // Jika code 502 (service unreachable), lanjutkan tanpa validasi member
 
         $bookResult = $this->fetchBook((int) $request->book_id, $request->bearerToken());
 
-        if (! $bookResult['ok']) {
+        if ($bookResult['ok']) {
+            $book = $bookResult['data'];
+            if ((int) ($book['available_stock'] ?? 0) < 1) {
+                return $this->formatResponse('error', 'Book stock is not available', [
+                    'book_id' => (int) $request->book_id,
+                    'available_stock' => (int) ($book['available_stock'] ?? 0),
+                ], 422);
+            }
+
+            $stockResult = $this->postCatalogStockAction((int) $request->book_id, 'borrow', $request->bearerToken());
+
+            if (! $stockResult['ok'] && $stockResult['code'] !== 502) {
+                return $this->formatResponse(
+                    'error',
+                    $stockResult['message'],
+                    $stockResult['data'],
+                    $stockResult['code']
+                );
+            }
+        } elseif ($bookResult['code'] !== 502) {
             return $this->formatResponse(
                 'error',
                 $bookResult['message'],
@@ -158,25 +186,7 @@ class LoanController extends Controller
                 $bookResult['code']
             );
         }
-
-        $book = $bookResult['data'];
-        if ((int) ($book['available_stock'] ?? 0) < 1) {
-            return $this->formatResponse('error', 'Book stock is not available', [
-                'book_id' => (int) $request->book_id,
-                'available_stock' => (int) ($book['available_stock'] ?? 0),
-            ], 422);
-        }
-
-        $stockResult = $this->postCatalogStockAction((int) $request->book_id, 'borrow', $request->bearerToken());
-
-        if (! $stockResult['ok']) {
-            return $this->formatResponse(
-                'error',
-                $stockResult['message'],
-                $stockResult['data'],
-                $stockResult['code']
-            );
-        }
+        // Jika code 502 (service unreachable), lanjutkan tanpa validasi buku
 
         $loan = Loan::create([
             'member_id' => $request->member_id,
@@ -187,17 +197,17 @@ class LoanController extends Controller
 
         return $this->formatResponse('success', 'Data created successfully', [
             'loan' => $loan,
-            'validated_member' => [
+            'validated_member' => $member ? [
                 'id' => $member['id'] ?? $request->member_id,
                 'status' => $member['status'] ?? null,
                 'is_active' => $member['is_active'] ?? null,
-            ],
-            'validated_book' => [
+            ] : null,
+            'validated_book' => $book ? [
                 'id' => $book['id'] ?? $request->book_id,
                 'title' => $book['title'] ?? null,
                 'available_stock_before' => (int) ($book['available_stock'] ?? 0),
                 'available_stock_after' => $stockResult['data']['available_stock'] ?? null,
-            ],
+            ] : null,
         ], 201);
     }
 
@@ -206,13 +216,7 @@ class LoanController extends Controller
      * path="/api/v1/loans/{id}/return",
      * summary="Proses pengembalian buku",
      * tags={"Loans"},
-     * @OA\Parameter(
-     * name="Authorization",
-     * in="header",
-     * required=true,
-     * description="Bearer Token (JWT) dari SSO Warga",
-     * @OA\Schema(type="string", default="Bearer <token>")
-     * ),
+     * security={{"ApiKeyAuth":{}}},
      * @OA\Parameter(
      * name="id",
      * in="path",
@@ -220,8 +224,16 @@ class LoanController extends Controller
      * description="ID Transaksi Peminjaman",
      * @OA\Schema(type="integer")
      * ),
-     * @OA\Response(response=200, description="Book returned successfully"),
-     * @OA\Response(response=404, description="Resource not found")
+     * @OA\Response(
+     * response=200,
+     * description="Book returned successfully",
+     * @OA\JsonContent()
+     * ),
+     * @OA\Response(
+     * response=404,
+     * description="Resource not found",
+     * @OA\JsonContent()
+     * )
      * )
      */
     public function returnBook(Request $request, $id)
@@ -238,7 +250,8 @@ class LoanController extends Controller
 
         $stockResult = $this->postCatalogStockAction((int) $loan->book_id, 'return', $request->bearerToken());
 
-        if (! $stockResult['ok']) {
+        // Graceful degradation: Lanjutkan proses pengembalian di DB lokal meskipun service katalog tidak terjangkau (502)
+        if (! $stockResult['ok'] && $stockResult['code'] !== 502) {
             return $this->formatResponse(
                 'error',
                 $stockResult['message'],
