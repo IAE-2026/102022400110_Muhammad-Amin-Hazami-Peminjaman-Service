@@ -17,7 +17,7 @@ RUN composer install --optimize-autoloader --no-interaction
 RUN cp -n .env.example .env || true
 RUN php artisan key:generate --force --no-interaction || true
 
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database
 
 EXPOSE 8000
 

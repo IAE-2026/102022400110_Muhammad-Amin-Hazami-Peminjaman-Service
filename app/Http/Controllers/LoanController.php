@@ -29,20 +29,23 @@ class LoanController extends Controller
 {
     private function formatResponse($status, $message, $data = null, $code = 200)
     {
+        $isSuccess = ($status === 'success' || $status === true);
+
         $response = [
-            'status' => $status,
+            'success' => $isSuccess,
+            'status'  => $isSuccess ? 'success' : 'error',
             'message' => $message,
         ];
 
-        if ($status === 'success') {
+        if ($isSuccess) {
             $response['data'] = $data;
             $response['meta'] = [
                 'service_name' => 'Peminjaman-Service',
                 'api_version' => 'v1'
             ];
         } else {
-            // Error response sesuai kontrak IAE-T2: pakai 'errors', bukan 'data'
             $response['errors'] = $data;
+            $response['data'] = null;
         }
 
         return response()->json($response, $code);

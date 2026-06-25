@@ -17,8 +17,11 @@ class JwtMiddleware
 
         if (!$token) {
             return response()->json([
+                'success' => false,
                 'status'  => 'error',
                 'message' => 'Unauthorized: Bearer token missing',
+                'errors'  => null,
+                'data'    => null,
             ], 401);
         }
 
@@ -109,8 +112,11 @@ class JwtMiddleware
         } catch (\Exception $e) {
             Log::warning('JWT verification failed: ' . $e->getMessage());
             return response()->json([
+                'success' => false,
                 'status'  => 'error',
                 'message' => 'Unauthorized: ' . $e->getMessage(),
+                'errors'  => null,
+                'data'    => null,
             ], 401);
         }
 

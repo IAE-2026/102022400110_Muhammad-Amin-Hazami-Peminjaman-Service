@@ -24,9 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->renderable(function (NotFoundHttpException $e, $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
+                    'success' => false,
                     'status'  => 'error',
                     'message' => 'Resource not found',
                     'errors'  => null,
+                    'data'    => null,
                 ], 404);
             }
         });
@@ -34,10 +36,28 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->renderable(function (ValidationException $e, $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
+                    'success' => false,
                     'status'  => 'error',
                     'message' => 'Validation failed',
                     'errors'  => $e->errors(),
+                    'data'    => null,
                 ], 422);
+            }
+        });
+
+        $exceptions->renderable(function (\Throwable $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'success' => false,
+                    'status'  => 'error',
+                    'message' => $e->getMessage() ?: 'Internal Server Error',
+                    'errors'  => [
+                        'exception' => get_class($e),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ],
+                    'data'    => null,
+                ], 500);
             }
         });
     })->create();
