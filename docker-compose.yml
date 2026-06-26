@@ -1,7 +1,6 @@
 services:
   app:
     build: .
-    container_name: loans-service
     ports:
       - "8000:8000"
     environment:
@@ -24,13 +23,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - .:/var/www
     restart: on-failure
 
   db:
     image: mysql:8.0
-    container_name: loans-db
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-peminjaman_service}
       MYSQL_USER: laravel
