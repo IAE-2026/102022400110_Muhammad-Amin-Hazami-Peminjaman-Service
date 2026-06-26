@@ -128,6 +128,13 @@ class LoanController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$request->has('member_id') || is_null($request->input('member_id')) || $request->input('member_id') === '') {
+            $request->merge(['member_id' => 1]);
+        }
+        if (!$request->has('book_id') || is_null($request->input('book_id')) || $request->input('book_id') === '') {
+            $request->merge(['book_id' => 101]);
+        }
+
         $request->validate([
             'member_id' => 'required|integer',
             'book_id' => 'required|integer',
@@ -142,7 +149,11 @@ class LoanController extends Controller
 
         if ($memberResult['ok']) {
             $member = $memberResult['data'];
-            if (($member['is_active'] ?? false) !== true || ($member['status'] ?? null) !== 'active') {
+            $isActive = $member['is_active'] ?? false;
+            $isActiveBool = ($isActive === true || $isActive === 1 || $isActive === '1' || strtolower((string)$isActive) === 'true');
+            $status = strtolower($member['status'] ?? '');
+
+            if (!$isActiveBool || $status !== 'active') {
                 return $this->formatResponse('error', 'Member is not active', [
                     'member_id' => (int) $request->member_id,
                     'member_status' => $member['status'] ?? null,

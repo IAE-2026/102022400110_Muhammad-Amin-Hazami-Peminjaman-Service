@@ -57,4 +57,34 @@ class JwtValidationTest extends TestCase
                  ]);
     }
 
+    /**
+     * Test that POST without body succeeds (returns 201) and conforms to wrapper.
+     */
+    public function test_post_without_body_succeeds_and_conforms_to_wrapper(): void
+    {
+        $response = $this->withHeaders([
+                            'X-IAE-KEY' => env('API_KEY', '102022400110'),
+                         ])
+                         ->postJson('/api/v1/loans', []);
+
+        $response->assertStatus(201)
+                 ->assertJsonStructure([
+                     'status',
+                     'message',
+                     'data' => [
+                         'loan' => [
+                             'id',
+                             'member_id',
+                             'book_id',
+                             'borrow_date',
+                             'status',
+                         ]
+                     ],
+                     'meta'
+                 ])
+                 ->assertJsonFragment([
+                     'status' => 'success',
+                 ]);
+    }
+
 }
