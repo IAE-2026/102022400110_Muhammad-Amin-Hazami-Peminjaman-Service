@@ -31,24 +31,23 @@ class LoanController extends Controller
     {
         $isSuccess = ($status === 'success' || $status === true);
 
-        $response = [
-            'success' => $isSuccess,
-            'status'  => $isSuccess ? 'success' : 'error',
-            'message' => $message,
-        ];
-
         if ($isSuccess) {
-            $response['data'] = $data;
-            $response['meta'] = [
-                'service_name' => 'Peminjaman-Service',
-                'api_version' => 'v1'
-            ];
+            return response()->json([
+                'status'  => 'success',
+                'message' => $message,
+                'data'    => $data,
+                'meta'    => [
+                    'service_name' => 'Peminjaman-Service',
+                    'api_version'  => 'v1'
+                ]
+            ], $code);
         } else {
-            $response['errors'] = $data;
-            $response['data'] = null;
+            return response()->json([
+                'status'  => 'error',
+                'message' => $message,
+                'errors'  => $data
+            ], $code);
         }
-
-        return response()->json($response, $code);
     }
 
     /**
